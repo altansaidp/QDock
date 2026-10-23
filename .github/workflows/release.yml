@@ -5,19 +5,21 @@ on:
     tags:
       - "v*"
 
-permissions:
-  contents: write
+permissions: {}
 
 jobs:
   release:
     runs-on: macos-14
+    permissions:
+      contents: write # create the GitHub release and upload assets
+      id-token: write # npm trusted publishing (OIDC) and provenance
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: "20"
           registry-url: "https://registry.npmjs.org"
@@ -52,7 +54,7 @@ jobs:
           shasum -a 256 "${{ steps.meta.outputs.dmg_name }}" > checksums.txt
 
       - name: Upload GitHub release assets
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
         with:
           draft: false
           prerelease: ${{ steps.meta.outputs.prerelease == 'true' }}
@@ -60,18 +62,19 @@ jobs:
             dist/${{ steps.meta.outputs.dmg_name }}
             dist/checksums.txt
 
-      # In-app one-click updates fetch the installer from npm. A failed
-      # publish (e.g. expired NPM_TOKEN) must not block the GitHub release;
-      # rerun this job after refreshing the secret to publish the installer.
+      # In-app one-click updates fetch the installer from npm. Publishing uses
+      # npm trusted publishing (OIDC), so no long-lived npm token exists. A
+      # failed publish (e.g. a misconfigured trusted publisher on npmjs.com)
+      # must not block the GitHub release; rerun this job after fixing it.
       - name: Publish installer to npm
         continue-on-error: true
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
+          # Trusted publishing needs npm 11.5.1+; Node 20 bundles npm 10.
+          npm install -g npm@11.21.0
           cd installer
           npm version --no-git-tag-version "${{ steps.meta.outputs.version }}"
           if [[ "${{ steps.meta.outputs.npm_tag }}" == "latest" ]]; then
-            npm publish --access public
+            npm publish --provenance --access public
           else
-            npm publish --access public --tag "${{ steps.meta.outputs.npm_tag }}"
+            npm publish --provenance --access public --tag "${{ steps.meta.outputs.npm_tag }}"
           fi

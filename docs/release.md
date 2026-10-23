@@ -2,9 +2,10 @@
 
 This runbook describes how maintainers publish DMG releases and npm installer updates.
 
-## Required GitHub Secrets
+## npm Publishing
 
-- `NPM_TOKEN`
+`@qdock/installer` is published with npm trusted publishing (OIDC) from `.github/workflows/release.yml`.
+No npm token secret is needed; the package's Trusted Publisher on npmjs.com must point at this repository and `release.yml`.
 
 ## Release Steps
 
